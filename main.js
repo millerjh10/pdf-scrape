@@ -43,7 +43,21 @@ const checkFileExists = s => new Promise((resolve, reject) => {
 async function printPDFs(url, linkSelector) {
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
-    await page.goto(url, {waitUntil: 'networkidle0', timeout: 10000});
+
+    let success = false;
+    for (const x of [1, 2, 3]) {
+        try {
+            await page.goto(url, {waitUntil: 'networkidle0', timeout: 10000});
+            success = true;
+        } catch (e) {
+            print(`Failed to fetch ${url}\n${e}\nRetrying Jimmy!`);
+            continue;
+        }
+    }
+    if (!success) {
+        print(`Ran out of tries for ${url}\n${e}\Sorry Jimmy!`);
+        return;
+    }
     print('We got the links!');
 
     await tick();
@@ -60,11 +74,20 @@ async function printPDFs(url, linkSelector) {
         const linkTitle = link.children[0].data;
         const pdfName = `${linkTitle}.pdf`;
         const pdfPath =  `${folderPath}/${pdfName}`;
-        try {
-            await page.goto(linkURL, {waitUntil: 'networkidle0', timeout: 10000});
-        } catch (e) {
-            print('Failed to fetch ' + linkURL + '\n' + e);
+        let success = false;
+        for (const x of [1, 2, 3]) {
+            try {
+                await page.goto(linkURL, {waitUntil: 'networkidle0', timeout: 10000});
+                success = true;
+            } catch (e) {
+                print(`Failed to fetch ${linkURL}\n${e}\nRetrying Jimmy!`);
+                continue;
+            }
+        }
+        if (!success) {
+            print(`Ran out of tries for ${linkURL}\n${e}\Sorry Jimmy!`);
             continue;
+
         }
         await tick()
         const pdf = await page.pdf({ format: 'A4' });    
@@ -72,12 +95,13 @@ async function printPDFs(url, linkSelector) {
         await printFile(pdfPath, pdf);
         print(`Created "${pdfName}"`);
     }
+
+    console.log('All done!');
     await browser.close();
     return;
 }
 
-
-const url = 'https://phys.org/physics-news';
+const url = process.argv[2] || 'https://phys.org/physics-news';
 const linkSelector = 'body > main > div > div:nth-child(2) > div.col-7.col-lg-6.pr-3 > div:nth-child(4) > div > div.sorted-news-list.px-3 a.news-link';
 
 printPDFs(url, linkSelector);
