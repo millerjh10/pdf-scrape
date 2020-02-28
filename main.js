@@ -1,8 +1,9 @@
 const puppeteer = require('puppeteer')
 const cheerio = require('cheerio');
 const home = require('os').homedir();
-
 const fs = require('fs');
+
+const printArt = require('./print-art');
 
 let currentTick = 0;
 const tick = () => {
@@ -50,6 +51,7 @@ async function printPDFs(url, linkSelector) {
             await page.goto(url, {waitUntil: 'networkidle0', timeout: 10000});
             success = true;
         } catch (e) {
+            await printArt.fail();
             print(`Failed to fetch ${url}\n${e}\nRetrying Jimmy!`);
             continue;
         }
@@ -80,6 +82,7 @@ async function printPDFs(url, linkSelector) {
                 await page.goto(linkURL, {waitUntil: 'networkidle0', timeout: 10000});
                 success = true;
             } catch (e) {
+                await printArt.fail();
                 print(`Failed to fetch ${linkURL}\n${e}\nRetrying Jimmy!`);
                 continue;
             }
@@ -90,8 +93,11 @@ async function printPDFs(url, linkSelector) {
 
         }
         await tick()
-        const pdf = await page.pdf({ format: 'A4' });    
+        const pdf = await page.pdf({ format: 'A4', margin: {
+            bottom: '50px',
+        }});    
         await tick()
+        await printArt.success();
         await printFile(pdfPath, pdf);
         print(`Created "${pdfName}"`);
     }
@@ -100,6 +106,16 @@ async function printPDFs(url, linkSelector) {
     await browser.close();
     return;
 }
+
+
+
+process.on('unhandledRejection', async error => {
+    console.log('unhandledRejection', error.message);
+    printArt.success();
+    await printArt.fail();
+    print('Your program has crashed Jimmy :(');
+    process.exit(1);
+});
 
 const url = process.argv[2] || 'https://phys.org/physics-news';
 const linkSelector = 'body > main > div > div:nth-child(2) > div.col-7.col-lg-6.pr-3 > div:nth-child(4) > div > div.sorted-news-list.px-3 a.news-link';
